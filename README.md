@@ -76,6 +76,16 @@ docker compose exec -T backend python -m scripts.seed_demo
 - Python 计算双侧两比例 Z 检验，合并比例计算标准误，α 固定为 0.05。由 `B − A` 计算百分点差、Newcombe–Wilson 95% 区间和带方向的 Cohen’s h。零假设下任一期望格数少于 5 时冻结。
 - 分组复现使用已保存的 128 位种子，以 `SHA-256(seed:居民编号)` 排序后交替分配，再以名单摘要核对导入名单。复盘输入摘要绑定方案编号、主指标、名单摘要与封存观测；批准快照包含聚合数据和输入摘要。
 
+## 复盘快照归档
+
+复盘签字后，搬库偶尔漏掉快照，也会混进同名错件。复盘页面始终照常展示签字结论，下载接口在每次导出前复验归档文件，并核对实验编号、各组人数、原输入摘要和检验值；任一不符即阻止下载。
+
+- 督导凭补档单恢复快照：`GET .../snapshot/status` 报告归档状态，`POST .../snapshot/supplements` 提交补档单编号与说明。后端从封存观测重算，与原输入摘要及签字检验值一致后重写快照，补档记录生效才开放下载。
+- 封存观测复验与原签字对不上（重算摘要或检验值不符）时，补档单转为转人工查档，不写文件、不开放下载。
+- 补档分两步提交：先登记补档单为待登记，再核对写入并置为已恢复。若在两步之间中断，恢复后重试同一补档单会接着办理，且不重复记账。
+- 同一补档单（按实验与补档单编号唯一）重试不会重复登记或重复审计；补好后沿用原签字，审批记录不变。
+
+
 ## 代码与本地开发
 
 | 目录或组件 | 职责 |
@@ -85,6 +95,7 @@ docker compose exec -T backend python -m scripts.seed_demo
 | `backend/src/workflow.py`、`migrations/` | PostgreSQL 领域模型、阶段校验、事务和审计事件 |
 | `backend/src/control_contracts.py`、`control_records.py`、`controls.py` | 资格、送达、更正契约和业务校验，由分组、观测与封存事务调用 |
 | `backend/src/worker.py`、`statistics.py` | Redis 唤醒，PostgreSQL 队列与恢复，分析快照在后端与 worker 共享卷生成 |
+| `backend/src/snapshot_archive.py`、`storage.py` | 快照归档复验、补档单恢复、转人工查档，下载前核对实验编号与检验值 |
 | `backend/src/class_schedule.py`、`seat_queue.py`、`attendance_handoff.py` | 讲师排期校验、受理与递补事务、签到与观测交接 |
 | `backend/src/session_routes.py`、`session_ledger.py`、`session_contracts.py` | 场次读写接口、同一数据库快照中的席位与签到投影、数据契约 |
 | `backend/scripts/seed_demo.py`、`seed_course_session.py` | 五个账号、五份方案、两份已分组名单、部分观测及一份 24 人待审资格名单 |

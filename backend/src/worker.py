@@ -8,6 +8,7 @@ from redis.exceptions import RedisError
 from .contracts import Phase
 from .db import QUEUE, audit, connect, redis_client
 from .statistics import two_proportion
+from .storage import analysis_dir
 from .workflow import analysis_input, assignments, balanced, counts, freeze, set_phase
 
 HEARTBEAT = Path('/tmp/worker-heartbeat')
@@ -37,7 +38,7 @@ def step():
             return True
         digest = analysis_input(plan, rows)
         report = dict(code=plan['code'], primary_metric=metric, groups=groups, statistics=result, input_digest=digest)
-        target = Path('/analysis') / f'{digest}.json'
+        target = analysis_dir() / f'{digest}.json'
         pending = target.with_suffix('.tmp')
         pending.write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding='utf-8')
         pending.replace(target)

@@ -1,19 +1,20 @@
+import json
 import logging
 import time
 from contextlib import asynccontextmanager
-from pathlib import Path
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import JSONResponse
 from redis.exceptions import RedisError
 
-from . import controls, workflow
+from . import controls, snapshot_archive, workflow
 from .auth import authenticate, current_user, require
 from .control_contracts import ClearanceSubmission, ControlDecision, Controls, CorrectionSubmission, DeliveryBatch
 from .contracts import (
-    Code, Decision, Dossier, Exclusion, Login, Observation, Plan, PlanCreate, PlanFields, Role, Roster, Transfer,
+    Code, Decision, Dossier, Exclusion, Login, Observation, Plan, PlanCreate, PlanFields, Role, Roster,
+    SnapshotStatus, SupplementSubmission, Transfer,
 )
 from .db import QUEUE, connect, migrate, redis_client
 from .session_routes import router as session_router
@@ -165,13 +166,22 @@ def decision(code: Code, item: Decision, user=Depends(reviewer)):
 
 @app.get('/experiments/{code}/snapshot', dependencies=[Depends(archive_reader)])
 def snapshot(code: Code):
-    item = workflow.dossier(code)['review']
-    if not item or item['status'] != 'approved':
-        raise HTTPException(409, '复核通过后才能导出实验快照')
-    path = Path('/analysis') / f'{item["input_digest"]}.json'
-    if not path.is_file():
-        raise HTTPException(503, '结果快照暂时不可用')
-    return FileResponse(path, media_type='application/json', filename=f'{code}-analysis.json')
+    payload = snapshot_archive.verified_payload(code)
+    return Response(
+        json.dumps(payload, ensure_ascii=False),
+        media_type='application/json',
+        headers={'Content-Disposition': f'attachment; filename="{code}-analysis.json"'},
+    )
+
+
+@app.get('/experiments/{code}/snapshot/status', response_model=SnapshotStatus, dependencies=[Depends(archive_reader)])
+def snapshot_status(code: Code):
+    return snapshot_archive.status(code)
+
+
+@app.post('/experiments/{code}/snapshot/supplements', response_model=SnapshotStatus)
+def submit_supplement(code: Code, item: SupplementSubmission, user=Depends(reviewer)):
+    return snapshot_archive.submit(code, item, user['email'])
 
 
 @app.get('/experiments/{code}/controls', response_model=Controls, dependencies=[Depends(archive_reader)])

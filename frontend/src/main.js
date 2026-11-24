@@ -16,7 +16,7 @@ const tabs = {
   delivery: ['邀请送达', invitationPage, '/controls'],
   capacity: ['场次容量', capacityPage, '/session'], waitlist: ['席位候补', waitlistPage, '/session'],
   attendance: ['签到交接', attendancePage, '/session'], observation: ['报名观测', observationPage],
-  correction: ['观测更正', correctionPage, '/controls'], review: ['复盘审批', reviewPage],
+  correction: ['观测更正', correctionPage, '/controls'], review: ['复盘审批', reviewPage, '/snapshot/status'],
 };
 const instructorTabs = new Set(['capacity', 'waitlist', 'attendance']);
 const demo = {organizer: 'lin@community.demo', observer: 'zhou@community.demo', reviewer: 'lu@community.demo', instructor: 'tang@community.demo'};
@@ -187,6 +187,12 @@ async function perform(action, form, button) {
   if (action === 'decision') {
     await experiment(code, '/decision', post({...values, decision: button.value}));
     flash = button.value === 'approved' ? '复核已通过，快照可下载。' : '分析已驳回。';
+  }
+  if (action === 'snapshot-supplement') {
+    const result = await experiment(code, '/snapshot/supplements', post(values));
+    flash = {verified: '补档单已登记，快照恢复并沿用原签字。',
+      pending: '补档单已写好但尚未登记生效，恢复后接着办。',
+      manual: result.reason || '封存观测复验对不上，已转人工查档。'}[result.state] || '补档单已登记。';
   }
   if (action === 'download') {
     const blob = await experiment(code, '/snapshot', {download: true});

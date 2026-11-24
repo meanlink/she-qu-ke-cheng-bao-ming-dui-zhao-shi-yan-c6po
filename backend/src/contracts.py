@@ -167,6 +167,35 @@ class AuditEntry(BaseModel):
     occurred_at: datetime
 
 
+class SupplementSubmission(Input):
+    source_ref: Label
+    note: Narrative
+
+
+class SupplementRecord(BaseModel):
+    id: int
+    source_ref: str
+    input_digest: str
+    note: str
+    mismatch_reason: str | None
+    status: Literal['pending', 'restored', 'manual']
+    requested_by: str
+    requested_at: datetime
+    applied_at: datetime | None
+
+
+class SnapshotStatus(BaseModel):
+    code: str
+    primary_metric: Literal['signup', 'attendance']
+    state: Literal['not_ready', 'missing', 'pending', 'mismatch', 'manual', 'verified']
+    reason: str | None
+    digest: str | None
+    computed_digest: str
+    groups: dict[Literal['A', 'B'], ArmTally]
+    statistics: dict[str, float | int | bool] | None
+    supplements: list[SupplementRecord]
+
+
 class Dossier(BaseModel):
     plan: Plan
     assignments: list[Assignment]
