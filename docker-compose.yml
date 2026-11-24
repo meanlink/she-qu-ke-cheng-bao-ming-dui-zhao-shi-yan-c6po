@@ -1,0 +1,78 @@
+name: community-class-experiment
+x-app-env: &app-env
+  PGHOST: db
+  PGDATABASE: community
+  PGUSER: community
+  PGPASSWORD: ${DB_PASSWORD:-community-local-db}
+  JWT_SECRET: ${JWT_SECRET:-local-community-course-key-change-this-before-use}
+  REDIS_URL: redis://redis:6379/0
+  SEED_DEMO: ${SEED_DEMO:-true}
+x-db-ready: &db-ready
+  db: {condition: service_healthy}
+  redis: {condition: service_healthy}
+services:
+  frontend:
+    build: ./frontend
+    container_name: ${COMPOSE_PROJECT_NAME:-community-class-experiment}-frontend
+    ports: ["${FRONTEND_PORT:-18242}:80"]
+    depends_on:
+      backend: {condition: service_healthy}
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, 'http://127.0.0.1/']
+      interval: 3s
+      timeout: 2s
+      retries: 15
+  backend:
+    build: ./backend
+    container_name: ${COMPOSE_PROJECT_NAME:-community-class-experiment}-backend
+    environment: *app-env
+    depends_on: *db-ready
+    ports: ["${BACKEND_PORT:-19242}:8000"]
+    volumes: [analysis:/analysis]
+    healthcheck:
+      test: [CMD, python, -c, "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2)"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  worker:
+    build: ./backend
+    command: [python, -m, src.worker]
+    container_name: ${COMPOSE_PROJECT_NAME:-community-class-experiment}-worker
+    environment: *app-env
+    depends_on:
+      <<: *db-ready
+      backend: {condition: service_healthy}
+    volumes: [analysis:/analysis]
+    healthcheck:
+      test: [CMD, python, -c, "import pathlib,time; assert time.time()-pathlib.Path('/tmp/worker-heartbeat').stat().st_mtime < 12"]
+      interval: 3s
+      timeout: 2s
+      retries: 12
+  db:
+    image: postgres:16-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-community-class-experiment}-db
+    environment:
+      POSTGRES_DB: community
+      POSTGRES_USER: community
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-community-local-db}
+    ports: ["${DB_PORT:-17742}:5432"]
+    volumes: [postgres:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD, pg_isready, -U, community, -d, community]
+      interval: 3s
+      timeout: 2s
+      retries: 15
+  redis:
+    image: redis:7-alpine
+    container_name: ${COMPOSE_PROJECT_NAME:-community-class-experiment}-redis
+    command: [redis-server, --appendonly, 'yes']
+    volumes: [redis:/data]
+    healthcheck:
+      test: [CMD, redis-cli, ping]
+      interval: 3s
+      timeout: 2s
+      retries: 15
+volumes:
+  postgres:
+  redis:
+  analysis:

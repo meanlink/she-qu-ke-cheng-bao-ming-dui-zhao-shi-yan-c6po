@@ -1,0 +1,56 @@
+.session-tally {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: .75rem;
+  margin: 1rem 0;
+}
+
+.session-tally div {
+  padding: .65rem .75rem;
+  background: var(--paper);
+  border-top: 2px solid var(--forest);
+}
+
+.session-tally dt {
+  color: var(--muted);
+  font-size: .85rem;
+}
+
+.session-tally dd {
+  margin: .2rem 0 0;
+  font: 600 clamp(1.2rem, 2vw, 2rem) / 1.25 var(--serif);
+}
+
+.seat-status {
+  white-space: nowrap;
+  display: inline-block;
+  padding: .15rem .45rem;
+  background: var(--sage);
+}
+
+.seat-status.waitlisted {
+  background: var(--paper);
+  border-inline-start: 2px solid var(--ochre);
+}
+
+.seat-status.withdrawn {
+  color: var(--clay);
+  background: var(--blush);
+}
+
+.handoff-tally {
+  list-style: none;
+  padding: 0;
+}
+
+.handoff-tally li {
+  display: flex;
+  justify-content: space-between;
+  padding: .38rem 0;
+  border-bottom: 1px solid var(--edge);
+}
+
+@media (max-width: 700px) {
+  .session-tally { gap: .35rem; }
+  .session-tally div { padding: .5rem; }
+}
